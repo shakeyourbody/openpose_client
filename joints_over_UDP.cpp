@@ -20,12 +20,10 @@ bool display(std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datum) {
   return (key == 27); // exit with `Esc`
 }
 
-void jointsOverUDP(const std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datum) {
+void jointsOverUDP(const std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datum, 
+                   iit::sock::UdpSocket<PosePacket>& UDPSocket) {
   const auto& poseKeypoints = datum->at(0)->poseKeypoints;
-
   PosePacket packet;
-  iit::sock::UdpSocket<PosePacket> UDPSocket;
-
   if (poseKeypoints.getSize(0)) {
     for (int i = 0; i < 2; i += 1) {
       packet.Nose[i] = poseKeypoints[{0, 0, i}];
@@ -66,13 +64,17 @@ int main(int argc, char* argv[]) {
   configureWrapper(wrapper);
   wrapper.start();
 
+  iit::sock::UdpSocket<PosePacket> UDPSocket;
+  UDPSocket.sock_init();
+  UDPSocket.sock_connect("127.0.0.1", 4124);
+
   bool looping = true;
   while (looping) {
     std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datum;
     if (wrapper.waitAndPop(datum)) {
       if (!FLAGS_no_display) looping = !display(datum);
       // else op::opLog(".", op::Priority::High);
-      jointsOverUDP(datum);
+      jointsOverUDP(datum, UDPSocket);
     } else if (!wrapper.isRunning()) looping = false;
     else op::opLog("processed daatum could not be emplaced", op::Priority::High);
   }
