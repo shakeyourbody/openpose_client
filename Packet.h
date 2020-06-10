@@ -1,5 +1,5 @@
-#ifndef OPENPOSE_PACKET_H
-#define OPENPOSE_PACKET_H
+#ifndef OPENPOSE_PACKET2_H
+#define OPENPOSE_PACKET2_H
 
 // {0,  "Nose"},
 // {1,  "Neck"},
@@ -57,4 +57,11 @@ typedef struct
     float RHeel[2];
 } PosePacket;
 
-#endif // OPENPOSE_PACKET_H
+typedef struct
+{
+    float Nose[2];
+    float RWrist[2];
+    float LWrist[2];
+} OldPosePacket;
+
+#endif // OPENPOSE_PACKET2_H

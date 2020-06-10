@@ -10,6 +10,7 @@
 
 // Flags
 DEFINE_bool(no_display, false, "enable to disable visual display");
+DEFINE_bool(old_packet, false, "use old packet");
 
 bool display(std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datum) {
   if (datum != nullptr && !datum->empty()) {
@@ -56,6 +57,20 @@ void jointsOverUDP(const std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>
   }
 }
 
+void jointsOverUDP_OldPacket(const std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datum, 
+                   iit::sock::UdpSocket<OldPosePacket>& UDPSocket) {
+  const auto& poseKeypoints = datum->at(0)->poseKeypoints;
+  OldPosePacket packet;
+  if (poseKeypoints.getSize(0)) {
+    for (int i = 0; i < 2; i += 1) {
+      packet.Nose[i] = poseKeypoints[{0, 0, i}];
+      packet.RWrist[i] = poseKeypoints[{0, 4, i}];
+      packet.LWrist[i] = poseKeypoints[{0, 7, i}];
+    }
+    UDPSocket.sock_send(packet);
+  }
+}
+
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -65,16 +80,26 @@ int main(int argc, char* argv[]) {
   wrapper.start();
 
   iit::sock::UdpSocket<PosePacket> UDPSocket;
-  UDPSocket.sock_init();
-  UDPSocket.sock_connect("127.0.0.1", 4124);
+  iit::sock::UdpSocket<OldPosePacket> OldUDPSocket;
+
+  if (FLAGS_old_packet)
+  {
+    OldUDPSocket.sock_init();
+    OldUDPSocket.sock_connect("127.0.0.1", 4124);
+  } 
+  else 
+  {
+    UDPSocket.sock_init();
+    UDPSocket.sock_connect("127.0.0.1", 4124);
+  }
 
   bool looping = true;
   while (looping) {
     std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datum;
     if (wrapper.waitAndPop(datum)) {
       if (!FLAGS_no_display) looping = !display(datum);
-      // else op::opLog(".", op::Priority::High);
-      jointsOverUDP(datum, UDPSocket);
+      if (FLAGS_old_packet) jointsOverUDP_OldPacket(datum, OldUDPSocket);
+      else jointsOverUDP(datum, UDPSocket);
     } else if (!wrapper.isRunning()) looping = false;
     else op::opLog("processed daatum could not be emplaced", op::Priority::High);
   }
